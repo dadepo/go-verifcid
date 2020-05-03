@@ -2,6 +2,8 @@ package verifcid
 
 import (
 	"fmt"
+	"io/ioutil"
+	"strings"
 
 	cid "github.com/ipfs/go-cid"
 	mh "github.com/multiformats/go-multihash"
@@ -9,6 +11,7 @@ import (
 
 var ErrPossiblyInsecureHashFunction = fmt.Errorf("potentially insecure hash functions not allowed")
 var ErrBelowMinimumHashLength = fmt.Errorf("hashes must be at %d least bytes long", minimumHashLength)
+var ErrPossiblyMalwareContent = fmt.Errorf("potentially malware content")
 
 const minimumHashLength = 20
 
@@ -54,9 +57,27 @@ func ValidateCid(c cid.Cid) error {
 		return ErrPossiblyInsecureHashFunction
 	}
 
+	ContainsMalware(c.String())
+
 	if pref.MhType != mh.ID && pref.MhLength < minimumHashLength {
 		return ErrBelowMinimumHashLength
 	}
 
+	return nil
+}
+
+func ContainsMalware(cid string) error {
+	fileBytes, err := ioutil.ReadFile("./blacklist")
+	if err != nil {
+		return err
+	}
+
+	mids := strings.Split(string(fileBytes), "\n")
+
+	for _, value := range mids {
+		if value == cid {
+			return ErrPossiblyMalwareContent
+		}
+	}
 	return nil
 }
